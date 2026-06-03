@@ -1,0 +1,2 @@
+-- seed.sql — runs after migrations on `supabase db reset`.
+-- Add fixtures here if you want test data in local dev.
