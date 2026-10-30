@@ -1,0 +1,32 @@
+import type { Metadata } from "next";
+import { AuthForm } from "@/components/AuthForm";
+import { ThemeToggle } from "@/components/ThemeToggle";
+
+export const metadata: Metadata = { title: "Sign in" };
+
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; email?: string; error?: string }> }) {
+  const { next, email, error } = await searchParams;
+  return (
+    <main className="auth">
+      <ThemeToggle floating />
+      <section className="auth-form">
+        <AuthForm next={next ?? "/projects"} email={email ?? ""} linkError={error === "link"} />
+      </section>
+      <aside className="auth-art" aria-hidden>
+        <h2>Every card knows who has to act next.</h2>
+        <div className="mini-board">
+          {["Proposed", "To do", "In review", "Completed"].map((c, i) => (
+            <div className="mini-col" key={c}>
+              <b>{c}</b>
+              {i !== 0 && <div className="mini-card" />}
+              {i === 0 && <div className="mini-card short" />}
+              {i === 0 && <div className="mini-card" />}
+              {i === 3 && <div className="mini-card short" />}
+            </div>
+          ))}
+          <div className="mini-hero">MAF-24</div>
+        </div>
+      </aside>
+    </main>
+  );
+}

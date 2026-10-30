@@ -1,164 +1,90 @@
-# TaskFlow
+# Tasklane
 
-Team task management app. Kanban boards, real-time sync, role-based access control, invitations with email delivery.
+Jira-style project and task management: Kanban board, manager-approved task intake, role-based workflow, e-mail invitations, live updates, light/dark theme.
 
-## Tech stack
+**Stack:** Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS 4 · Zustand 5 · Supabase (Postgres, Auth, Realtime).
+No UI component library. Dialogs, drawers and menus use native `<dialog>` and the Popover API; motion is CSS (`@starting-style`, keyframes).
 
-- **Frontend:** Next.js 14 (App Router), TypeScript, Tailwind CSS, shadcn-style UI primitives
-- **State:** Redux Toolkit + RTK Query (cached server state), React Context (UI state)
-- **Backend:** Supabase (Postgres + Auth + Realtime + Storage)
-- **Auth:** Email/password + password reset + OAuth-ready
-- **Drag & drop:** dnd-kit with fractional-position ordering
-- **Email:** Resend
-- **Forms:** react-hook-form + zod
+## Setup
 
-## Quick start (Supabase Cloud)
+1. `npm install`
+2. Create a Supabase project, open **SQL Editor**, paste and run `supabase/schema.sql` (once, on a fresh project).
+   *Upgrading an existing database?* Run, in order and once each, `supabase/migration-v4-order-and-reorder.sql` (card order) and `supabase/migration-v5-anyone-creates-projects.sql` (anyone can create a project).
+   *Upgrading from v1?* Run `supabase/migration-v2a-enum.sql` first, on its own, then `supabase/migration-v2b-functions.sql`.
+3. Supabase → **Authentication → URL Configuration**: set *Site URL* to your app URL and add `http://localhost:3000/auth/callback` (and your production URL) to *Redirect URLs*.
+4. Supabase → **Authentication → SMTP**: add your SMTP so confirmation e-mails are not rate-limited.
+5. Copy `.env.example` to `.env.local` and fill it in. Without `RESEND_API_KEY`, notification e-mails are printed to the server log instead of sent.
+6. `npm run dev`. **The first account you create becomes the workspace admin.**
 
-```bash
-# 1. Install
-npm install
+Deploy on Vercel: add the same env vars. `vercel.json` already schedules `/api/cron/overdue` hourly (it needs `CRON_SECRET` and `SUPABASE_SERVICE_ROLE_KEY`).
 
-# 2. Copy env template
-cp .env.local.example .env.local
-# Fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY,
-# SUPABASE_SERVICE_ROLE_KEY from your Supabase project (Settings → API)
+## Roles
 
-# 3. Apply migrations
-# Option A — paste each file from supabase/migrations/ into your Supabase
-# Dashboard → SQL Editor in order (0001 through 0007).
-#
-# Option B — use the CLI:
-npx supabase login
-npx supabase link --project-ref <your-project-ref>
-npx supabase db push
+| | Admin | Manager | Developer | Tester |
+|---|:-:|:-:|:-:|:-:|
+| See every project, grant admin | ✓ | | | |
+| **Create a project** (you become its manager) | ✓ | ✓ | ✓ | ✓ |
+| Invite / remove people, change roles | ✓ | ✓ | | |
+| **Delete the project**: only the person who created it, whatever their role now is (must type the project key) | | | | |
+| Create tasks straight into *To do*, assign, edit, delete | ✓ | ✓ | | |
+| **Propose** a task (needs manager approval first) | | | ✓ | ✓ |
+| Edit / resubmit / withdraw **own** proposal | | | ✓ | ✓ |
+| Approve or decline a proposal (can adjust due date, estimate, assignee) | ✓ | ✓ | | |
+| Start / send for review **only tasks assigned to them** (managers can't start, submit or pause someone else's task) | ✓ | ✓ | ✓ | ✓ |
+| Approve or send back a review | ✓ | ✓ | | |
+| Pass or fail testing | only if the project has no tester | only if the project has no tester | | ✓ |
+| Reopen completed tasks | ✓ | ✓ | | |
+| **Move any card to any column** (override, reason required) | ✓ | ✓ | | |
+| Team workload table | ✓ | ✓ | | |
 
-# 4. (Optional) Generate TypeScript types from your live schema
-npx supabase gen types typescript --project-id <your-project-ref> > types/database.ts
+Admin = workspace level (the first account to sign up). Manager / developer / tester = per project, so one person can be a manager in the project they created and a developer in a project they were invited to.
 
-# 5. Run
-npm run dev
-```
-
-Open [localhost:3000](http://localhost:3000).
-
-## Architecture
-
-### Three-layer permission enforcement
-
-1. **UI** hides buttons the user shouldn't see (cosmetic)
-2. **API route handlers** validate auth and role (defense in depth)
-3. **Postgres RLS** — the authoritative security boundary
-
-Every feature trust flows bottom-up: if RLS denies, the UI never finds out the row exists.
-
-### Role model
-
-| Scope | Roles | Capabilities |
-|---|---|---|
-| Workspace | owner · admin · member · viewer | Owner = delete workspace + all admin powers. Admin = invite, manage roles, manage boards. Member = create/use boards. Viewer = read-only + comments. |
-| Board (private) | admin · member | Admin = change board settings, add/remove members, delete. Member = create/move/edit tasks, comment. |
-| Board (public) | — | Any non-viewer workspace member can write. Viewers read-only + comments. |
-
-### Folder layout
+## Workflow
 
 ```
-app/                  Next.js routes
-  (auth)/             login / signup / reset
-  (app)/              authenticated shell + pages
-    workspaces/[wsId]/
-      boards/[boardId]/
-  api/                route handlers
-  invite/[token]/     public invitation landing
-components/
-  ui/                 primitives (button, dialog, popover, …)
-  kanban/             Board, Column, TaskCard
-  tasks/              TaskForm, TaskDetailDrawer, SubtaskList
-  comments/           CommentThread
-  layout/             Sidebar, Header, NotificationBell
-  shared/             ActionMenu, ConfirmDialog, UserAvatar, …
-features/             Redux slices + RTK Query APIs (by domain)
-store/                store, base API, listener middleware
-hooks/                useCurrentUser, useAppStore, useRealtime, usePermissions
-lib/
-  supabase/           browser / server / admin / middleware clients
-  email/              Resend wrapper + sender
-  validations/        Zod schemas
-  errors/             Postgres → user-readable error mapper
-  utils/              cn, dates, mentions, slug
-types/                branded IDs + domain types + DB stub
-supabase/
-  migrations/         numbered SQL files (idempotent, ordered)
-  config.toml
-  seed.sql
+Manager creates ───────────────────────────────────────────────┐
+Dev / tester proposes → PROPOSED ─┬─ approve (manager may edit) ┴→ To do → In progress → In review ─┬─ approve, no QA ──────────→ Completed
+                                  └─ decline (note) → DECLINED                ▲                      ├─ approve, QA → In testing ─┬─ pass → Completed
+                                        │  revise & resubmit ↩                └── send back (note) ──┴────────────────────────────┴─ fail
+                                        └─ or withdraw
+Review "send back" (note required) → To do; the assignee presses Start work again.
+Completed → reopen (note required) → In progress
+Manager override: any column ↔ any column (except the Proposed lane), reason required, logged, assignee notified.
 ```
 
-### Key decisions
+**Estimate (hours) is optional.** It is a planning aid for managers, not something the person doing the work can know up front; making it mandatory just produced invented numbers. A proposer may suggest one, a manager can set or change it when approving. **Due date and "needs testing?" stay required** because overdue tracking and the QA gate depend on them.
 
-- **Flat layout (no `src/`)** — `@/` alias points to project root for cleaner imports.
-- **Branded ID types** — compile-time prevention of mixing up `WorkspaceId` / `BoardId` / `TaskId`.
-- **Single shared `baseApi`** — every feature `injectEndpoints`, so cache invalidation spans domains.
-- **`fakeBaseQuery` + Supabase SDK** — each endpoint defines its own `queryFn` so we get retries / auth / realtime out of the box without a REST facade.
-- **Fractional positioning** on tasks — drag doesn't rewrite every sibling, just the moved card.
-- **Optimistic kanban moves** — card updates instantly, rolls back on RLS reject via `onQueryStarted`.
-- **Listener middleware** toasts every rejected mutation so components don't duplicate that code.
-- **VOLATILE RLS helpers** — avoid snapshot-caching bugs where a trigger's insert isn't visible to a subsequent SELECT check.
+## How the tricky cases are handled
 
-## Email setup
+- **Proposals.** Non-managers cannot put work directly into *To do* or assign it to other people. Their task lands in *Proposed*; managers are notified instantly. Nobody (not even the proposer or a manager) can start it until a manager approves it through `approve_task`, which can change due date / estimate / priority / assignee / QA flag in the same step and tells the proposer exactly what was adjusted. Approving needs a future due date. A proposer can't approve their own proposal if another manager exists. Declining requires a reason; the proposer can revise & resubmit (managers are re-notified) or withdraw. Two managers racing on one proposal → the second gets a "no longer waiting for approval" refusal.
+- **Manager override.** Drag a card to any column (dashed amber outline) or use *Move to…* in the card. A reason is mandatory, the move is stored in the activity log as a manual move, and the assignee is notified. Guards: can't skip the proposal lane, can't move unassigned work into progress, can't move to *testing* if QA isn't required, can't override-approve your own task when another manager exists.
 
-See [`docs/EMAIL_SETUP.md`](./docs/EMAIL_SETUP.md) for the complete guide.
+- **Rules live in the database.** Browsers can only read tables. Every write is a `SECURITY DEFINER` function (`transition_task`, `create_task`, …) that checks role and workflow, locks the row, writes the audit trail and notifications in one transaction. The UI hides illegal moves, but cannot bypass them.
+- **Two people act on the same card.** Moves carry the status the user saw; if it changed, the move is refused with "this card was already moved to …" and the card refreshes.
+- **Self-approval.** You cannot review or test your own task when someone else could; a sole manager can (otherwise the card would be stuck).
+- **No tester in the project.** A manager can pass/fail testing so cards never get stranded.
+- **Invitations.** A person becomes a member only after accepting. The invite is bound to the e-mail address (wrong account → clear message), expires in 7 days, can be revoked, and re-inviting replaces the pending one. Pending invites also show on the invitee's Projects page.
+- **Removing a member** unassigns their unfinished tasks and moves their in-progress ones back to *To do*. The last manager can't be removed or demoted.
+- **Live updates.** Supabase Realtime pushes card moves, new tasks, member changes and notifications. After a dropped connection or a hidden tab the board re-syncs. Everything is persisted, so a browser refresh shows the same state.
+- **Overdue.** Cards past due get a red edge. On *Members*, each member's in-progress tasks are listed and overdue ones are highlighted red; the sweep at `/api/cron/overdue` notifies the assignee and managers once per due date.
+- **Optimistic moves** roll back with an explanation if the server refuses.
 
-TL;DR:
+## Notes
 
-1. Sign up at [resend.com](https://resend.com), create an API key.
-2. In `.env.local`: `RESEND_API_KEY=re_your_key`
-3. In `.env.local`: `RESEND_FROM_EMAIL=TaskFlow <onboarding@resend.dev>` (no quotes, no smart quotes).
-4. Restart `npm run dev`.
-5. **Resend sandbox** only delivers to your registered address until you verify a domain at [resend.com/domains](https://resend.com/domains). The app surfaces this clearly as a toast when it happens.
+- Drag and drop works with a mouse. On touch devices open a card and use the action buttons / *Move to…* (same rules, same server checks).
+- **Theme.** The sun/moon/monitor button in the top bar cycles System → Light → Dark and is remembered in `localStorage`. A tiny inline script in `<head>` applies it before first paint.
+- **Notifications** arrive over Supabase Realtime with no refresh, ring the bell, and are re-synced after a dropped connection or when a hidden tab wakes up.
+- **Browser support.** Layout, animation and theming use widely supported CSS. Dialog/popover fade-ins use `@starting-style` and `allow-discrete` (Chrome 117+, Safari 17.5+, Firefox 129+); older browsers get the same UI without the fade. Popover menus need Chrome 114+, Safari 17+, Firefox 125+.
+- Run `npm run typecheck` before deploying.
 
-## What's included
+- **Card order.** Managers can drag a card up or down inside To do / In progress / In review / In testing (blue line shows where it lands). Order is stored in `tasks.position` and synced live. Cards that change column go to the bottom unless dropped on a specific spot.
+- **Due date** is date-only (end of that day). **Estimate** stays an optional planning aid.
+- Card moves use the View Transitions API (graceful fallback, respects reduced motion).
+- **Dialogs.** Confirmations (delete task, remove member, remove own admin) use the in-app dialog (`ConfirmHost`, `app.ask()`), never `window.confirm`.
 
-- Auth: signup, login, password reset, OAuth callback
-- Workspaces: create, rename, delete, members, roles, invitations
-- Boards: public/private, color, star/unstar, kanban with drag-and-drop
-- Tasks: priority, due dates, assignees, star rating, subtasks with review workflow
-- Comments: plain-text with realtime sync
-- Notifications: unread bell, mark read, full inbox, realtime updates
-- Invitations: Gmail-style email picker with chips, email delivery via Resend, accept/reject landing
+## Trying it with two accounts
 
-## What's not included (yet)
-
-These are tracked as future work but not in this scaffold:
-
-- Bug tracking UI (DB tables + RLS are ready)
-- Tiptap rich-text editor with @mentions
-- Per-board chat rooms
-- List view toggle on boards
-- Board settings / member management page
-- Edge function email worker
-- Attachments / file uploads
-
-## Scripts
-
-```
-npm run dev         # start dev server
-npm run build       # production build
-npm run typecheck   # type-check without emit
-npm run db:push     # apply migrations to linked Supabase project
-npm run db:reset    # wipe + reapply migrations (local only)
-npm run db:types    # regenerate types/database.ts from live schema
-```
-
-## Testing checklist
-
-1. Sign up User 1 → create workspace → see empty dashboard
-2. Invite User 2 (must be your Resend-registered email in sandbox mode)
-3. User 2 accepts → shared workspace visible to both
-4. User 1 creates a private board, adds User 2 → both see it
-5. User 1 creates a public board, does NOT add User 2 → User 2 still sees it (public)
-6. User 1 creates a task → drag between columns → User 2 sees move in realtime
-7. Task drawer → add subtask → send to review → User 1 gets notification → approve
-8. Change User 2's role to Viewer → verify they can no longer create tasks
-
-## License
-
-MIT. Use freely.
+1. Sign up account **A** first: it becomes the workspace admin. Create a project: A is its manager.
+2. In A's project, **Invite people** → enter account **B**'s e-mail, role *Developer*. B must sign up / sign in with that same e-mail, then accept the invite on the Projects page.
+3. B now sees the project as a developer: B **proposes** tasks, A approves them. B can also press **New project** to create a separate project where B is the manager.
+4. Realtime: keep A and B in two different browsers (or one normal + one private window). Move a card in one and watch it move in the other.
