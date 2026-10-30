@@ -333,7 +333,8 @@ dialog.modal[open] { opacity: 1; translate: 0; scale: 1; }
 .dlg-head { display: grid; gap: 4px; padding: 20px 24px 16px; background: var(--dlg-head); border-bottom: 1px solid var(--line); }
 .dlg-head .sub { color: var(--ink-3); font-size: 13px; }
 .dlg-body { display: grid; gap: 16px; padding: 20px 24px 24px; background: var(--surface); }
-.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; padding: 14px 24px; background: var(--dlg-foot); border-top: 1px solid var(--line); }
+.dlg-actions { display: flex; justify-content: flex-end; gap: 8px; flex-wrap: wrap; }
+.dlg > .dlg-actions { padding: 14px 24px; background: var(--dlg-foot); border-top: 1px solid var(--line); }
 .grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 
 /* ---------- Project header & tabs ---------- */
@@ -582,7 +583,7 @@ dialog.modal[open] { opacity: 1; translate: 0; scale: 1; }
   dialog.modal[open] { translate: 0; }
   @starting-style { dialog.modal[open] { translate: 0 40px; scale: 1; } }
   dialog.drawer { width: 100vw; }
-  .dlg-head { padding: 16px 16px 14px; } .dlg-body { padding: 16px; } .dlg-actions { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
+  .dlg-head { padding: 16px 16px 14px; } .dlg-body { padding: 16px; } .dlg > .dlg-actions { padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); }
   .grid2 { grid-template-columns: 1fr; }
   .seg { grid-auto-flow: row; }
   .dlg-actions .btn { flex: 1 1 auto; }

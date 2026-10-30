@@ -2,7 +2,7 @@ import { NavLink } from "@/components/NavLink";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { NewProject } from "@/components/NewProject";
-import { InviteRow } from "@/components/InviteActions";
+import { InviteList } from "@/components/InviteActions";
 import type { MyInvite, ProjectRole } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Projects" };
@@ -27,13 +27,7 @@ export default async function ProjectsPage() {
         <NewProject />
       </div>
 
-      {pending.length > 0 && (
-        <section aria-label="Invitations" style={{ display: "grid", gap: 8, marginBottom: 24 }}>
-          {pending.map((i) => (
-            <InviteRow key={i.token} invite={i} />
-          ))}
-        </section>
-      )}
+      <InviteList invites={pending} />
 
       {!projects?.length ? (
         <p className="empty" style={{ background: "var(--surface)", border: "1px dashed var(--line-strong)", borderRadius: 10 }}>

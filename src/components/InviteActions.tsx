@@ -1,9 +1,9 @@
 "use client";
 
-import { useTransition } from "react";
+import { useEffect, useRef, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { acceptInvite, declineInvite } from "@/app/actions";
-import { useAppApi } from "@/store/app-store";
+import { useApp, useAppApi } from "@/store/app-store";
 import type { MyInvite } from "@/lib/types";
 import { Spinner } from "./ui";
 
@@ -57,5 +57,31 @@ export function InviteRow({ invite }: { invite: MyInvite }) {
       </div>
       <InviteButtons token={invite.token} compact />
     </div>
+  );
+}
+
+/**
+ * Invitations waiting for the signed-in user. The list comes from the server; when a new
+ * "invite_received" notification arrives live, the page data is refreshed so the row appears
+ * without a manual reload.
+ */
+export function InviteList({ invites }: { invites: MyInvite[] }) {
+  const router = useRouter();
+  const latest = useApp((s) => s.notices.find((n) => n.kind === "invite_received")?.id);
+  const seen = useRef(latest);
+  useEffect(() => {
+    if (latest !== seen.current) {
+      seen.current = latest;
+      router.refresh();
+    }
+  }, [latest, router]);
+
+  if (!invites.length) return null;
+  return (
+    <section aria-label="Invitations" style={{ display: "grid", gap: 8, marginBottom: 24 }}>
+      {invites.map((i) => (
+        <InviteRow key={i.token} invite={i} />
+      ))}
+    </section>
   );
 }
