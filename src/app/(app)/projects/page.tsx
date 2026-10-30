@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { NewProject } from "@/components/NewProject";
 import { InviteList } from "@/components/InviteActions";
-import type { MyInvite, ProjectRole } from "@/lib/types";
+import type { ProjectRole } from "@/lib/types";
 
 export const metadata: Metadata = { title: "Projects" };
 
@@ -12,13 +12,11 @@ export default async function ProjectsPage() {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const [{ data: projects }, { data: mine }, { data: invites }] = await Promise.all([
+  const [{ data: projects }, { data: mine }] = await Promise.all([
     supabase.from("projects").select("id,key,name,description,project_members(count)").order("name"),
     supabase.from("project_members").select("project_id,role").eq("user_id", user!.id),
-    supabase.rpc("my_invites"),
   ]);
   const roles = new Map((mine ?? []).map((m) => [m.project_id as string, m.role as ProjectRole]));
-  const pending = (invites ?? []) as MyInvite[];
 
   return (
     <main className="page">
@@ -27,13 +25,11 @@ export default async function ProjectsPage() {
         <NewProject />
       </div>
 
-      <InviteList invites={pending} />
+      <InviteList />
 
       {!projects?.length ? (
         <p className="empty" style={{ background: "var(--surface)", border: "1px dashed var(--line-strong)", borderRadius: 10 }}>
-          {pending.length > 0
-            ? "Accept an invitation above, or create a project of your own."
-            : "No projects yet. Create one (you become its manager), or wait for an invitation from a manager."}
+          No projects yet. Create one (you become its manager), or accept an invitation when a manager sends one.
         </p>
       ) : (
         <div className="cards">

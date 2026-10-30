@@ -1,17 +1,26 @@
 "use client";
 
-import { useEffect, useRef, useTransition } from "react";
-import { useRouter } from "next/navigation";
+import { useTransition } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { acceptInvite, declineInvite } from "@/app/actions";
 import { useApp, useAppApi } from "@/store/app-store";
 import type { MyInvite } from "@/lib/types";
 import { Spinner } from "./ui";
 
-export function InviteButtons({ token, compact = false }: { token: string; compact?: boolean }) {
+export function InviteButtons({ token, compact = false, onDone }: { token: string; compact?: boolean; onDone?: () => void }) {
   const router = useRouter();
+  const path = usePathname();
   const app = useAppApi();
   const [pending, start] = useTransition();
   const cls = compact ? "btn sm" : "btn";
+
+  /** Remove the invitation everywhere it is shown (Projects list, bell) and mark its notification read. */
+  const settle = () => {
+    const s = app.getState();
+    s.dropInvite(token);
+    s.markRead(s.notices.filter((n) => n.link === `/invite/${token}`).map((n) => n.id));
+    onDone?.();
+  };
 
   return (
     <div className="dlg-actions">
@@ -22,7 +31,8 @@ export function InviteButtons({ token, compact = false }: { token: string; compa
           start(async () => {
             const r = await declineInvite(token);
             if (!r.ok) return app.getState().toast({ text: r.error, tone: "danger" });
-            router.replace("/projects");
+            settle();
+            if (path.startsWith("/invite/")) router.replace("/projects");
             router.refresh();
           })
         }
@@ -36,11 +46,12 @@ export function InviteButtons({ token, compact = false }: { token: string; compa
           start(async () => {
             const r = await acceptInvite(token);
             if (!r.ok) return app.getState().toast({ text: r.error, tone: "danger" });
+            settle();
             router.push(`/projects/${r.data.project_id}`);
           })
         }
       >
-        {pending && <Spinner />} Accept invitation
+        {pending && <Spinner />} {compact ? "Accept" : "Accept invitation"}
       </button>
     </div>
   );
@@ -60,22 +71,9 @@ export function InviteRow({ invite }: { invite: MyInvite }) {
   );
 }
 
-/**
- * Invitations waiting for the signed-in user. The list comes from the server; when a new
- * "invite_received" notification arrives live, the page data is refreshed so the row appears
- * without a manual reload.
- */
-export function InviteList({ invites }: { invites: MyInvite[] }) {
-  const router = useRouter();
-  const latest = useApp((s) => s.notices.find((n) => n.kind === "invite_received")?.id);
-  const seen = useRef(latest);
-  useEffect(() => {
-    if (latest !== seen.current) {
-      seen.current = latest;
-      router.refresh();
-    }
-  }, [latest, router]);
-
+/** Invitations waiting for the signed-in user. They live in the app store, which the realtime feed keeps current. */
+export function InviteList() {
+  const invites = useApp((s) => s.invites);
   if (!invites.length) return null;
   return (
     <section aria-label="Invitations" style={{ display: "grid", gap: 8, marginBottom: 24 }}>

@@ -302,6 +302,9 @@ input:user-invalid, select:user-invalid, textarea:user-invalid { border-color: v
 .pop-notices li[data-unread="true"] a { background: var(--brand-soft); }
 .pop-notices li[data-unread="true"] a::before { content: ""; position: absolute; left: 9px; top: 17px; width: 7px; height: 7px; border-radius: 50%; background: var(--brand); }
 .pop-notices li span { color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pop-notices li .notice-actions { padding: 0 12px 10px 22px; border-bottom: 1px solid var(--line); }
+.pop-notices li[data-unread="true"] .notice-actions { background: var(--brand-soft); }
+.pop-notices li:has(.notice-actions) a { border-bottom: 0; }
 .pop-notices li time { color: var(--ink-3); font-size: 12px; }
 .pop-user { width: 260px; }
 .pop-user .who { display: grid; gap: 2px; padding: 12px; border-bottom: 1px solid var(--line); }

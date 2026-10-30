@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { inviteMember } from "@/app/actions";
+import { createClient } from "@/lib/supabase/client";
 import { useApp, useAppApi } from "@/store/app-store";
 import { useProject, useProjectApi } from "@/store/project-store";
 import type { Invite, ProjectRole } from "@/lib/types";
@@ -39,13 +40,14 @@ function Form({ onClose }: { onClose: () => void }) {
         start(async () => {
           const r = await inviteMember(project.id, email, role);
           if (!r.ok) return setError(r.error);
-          // Show it in the pending list immediately; realtime will confirm.
-          const s = api.getState();
-          const stub: Invite = {
-            id: crypto.randomUUID(), project_id: project.id, email, role, token: "", status: "pending",
-            created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 7 * 864e5).toISOString(),
-          };
-          s.setInvites([stub, ...s.invites.filter((i) => i.email.toLowerCase() !== email)]);
+          // Reload the real pending list (real ids, so Cancel / Resend work straight away).
+          const { data } = await createClient()
+            .from("project_invites")
+            .select("*")
+            .eq("project_id", project.id)
+            .eq("status", "pending")
+            .order("created_at", { ascending: false });
+          if (data) api.getState().setInvites(data as Invite[]);
           app.getState().toast({ text: `Invitation sent to ${email}`, tone: "success" });
           onClose();
         });

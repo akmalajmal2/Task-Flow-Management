@@ -19,6 +19,7 @@ All migrations are safe to run again: they use `create or replace`, `if not exis
 | `migration-v4-order-and-reorder.sql` | `tasks.position` + `reorder_task()` (drag to reorder inside a column) |
 | `migration-v5-anyone-creates-projects.sql` | Any signed-in user can create a project and becomes its manager |
 | `migration-v6-delete-project.sql` | `delete_project()`: only the project's creator can delete it (the key must be typed to confirm) |
-| `migration-v7-sync-all.sql` | v2b + v3 + v4 + v5 + v6 + v8 + v9 in one run (stops with a clear message if v2a is still needed), then reloads the API schema cache |
+| `migration-v7-sync-all.sql` | v2b + v3 + v4 + v5 + v6 + v8 + v9 in one run (run v10 separately) (stops with a clear message if v2a is still needed), then reloads the API schema cache |
 | `migration-v8-feedback-files.sql` | Photos / PDFs on review remarks: private `task-files` bucket, access rules, `set_decision_files()`. Already ran v7 before this version? Run only this file. |
 | `migration-v9-live-invites.sql` | Inviting someone who already has an account notifies them instantly (bell, toast, invitation row). Already ran v7 before this version? Run only this file. |
+| `migration-v10-realtime-notifications.sql` | Makes sure `notifications`, `tasks`, `project_members` and `project_invites` are in the realtime publication (fixes "invitation only appears after refresh" on older databases). Safe to run again. |

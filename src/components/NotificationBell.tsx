@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useApp, useAppApi } from "@/store/app-store";
+import { InviteButtons } from "./InviteActions";
 import { Icon } from "./ui";
 
 const ago = (iso: string) => {
@@ -29,11 +29,10 @@ export function NotificationBell() {
     seen.current = latest;
   }, [latest]);
 
-  const read = async (ids: string[] | "all") => {
-    app.getState().markRead(ids);
-    const q = createClient().from("notifications").update({ read_at: new Date().toISOString() }).is("read_at", null);
-    await (ids === "all" ? q : q.in("id", ids));
-  };
+  const invites = useApp((s) => s.invites);
+  const pendingTokens = useMemo(() => new Set(invites.map((i) => i.token)), [invites]);
+  const read = (ids: string[] | "all") => app.getState().markRead(ids);
+  const closePop = () => document.getElementById("notices")?.hidePopover();
 
   return (
     <>
@@ -52,7 +51,9 @@ export function NotificationBell() {
           <p className="empty">Nothing yet. You'll hear about proposals, assignments, reviews and test results here.</p>
         ) : (
           <ul>
-            {notices.map((n) => (
+            {notices.map((n) => {
+              const token = n.kind === "invite_received" ? n.link?.split("/invite/")[1] : undefined;
+              return (
               <li key={n.id} data-unread={!n.read_at}>
                 <Link
                   href={n.link ?? "/projects"}
@@ -65,8 +66,14 @@ export function NotificationBell() {
                   {n.body && <span>{n.body}</span>}
                   <time>{ago(n.created_at)}</time>
                 </Link>
+                {token && pendingTokens.has(token) && (
+                  <div className="notice-actions">
+                    <InviteButtons token={token} compact onDone={closePop} />
+                  </div>
+                )}
               </li>
-            ))}
+              );
+            })}
           </ul>
         )}
       </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { createStore, useStore, type StoreApi } from "zustand";
+import { createStore, useStore, type StoreApi } from "@/lib/store";
 import { createClient } from "@/lib/supabase/client";
 import { withTransition } from "@/lib/motion";
 import { describeMove } from "@/lib/workflow";
